@@ -8,7 +8,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-
+  useEffect(() => {
+    if (session && recommendations.length === 0) {
+      fetchRecommendations(); // Automatically fetch recommendations when the session is available
+    }
+  }, [session]);
 
   const fetchRecommendations = async () => {
   setLoading(true);
