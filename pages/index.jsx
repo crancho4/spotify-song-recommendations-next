@@ -44,9 +44,6 @@ export default function Home() {
 
   return (
     <div style={styles.container}>
-
- 
-
       <main style={styles.main}>
         {!session ? (
           <div style={styles.welcome}>
