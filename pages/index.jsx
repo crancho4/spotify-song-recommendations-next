@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import Playlists from '../components/Playlists';
+
 
 export default function Home() {
   const { data: session } = useSession();
