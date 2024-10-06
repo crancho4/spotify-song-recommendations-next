@@ -35,10 +35,10 @@ async function refreshAccessToken(token) {
     }
 
     return {
-      accessToken: account.access_token,
-      accessTokenExpires: Date.now() + account.expires_in * 1000,
-      refreshToken: account.refresh_token ?? token.refreshToken, // Fall back to old refresh token
-      user: account,
+      ...token,
+      accessToken: refreshedTokens.access_token,
+      accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000, // 1 hour
+      refreshToken: refreshedTokens.refresh_token ?? token.refreshToken, // Fall back to old refresh token
     };
   } catch (error) {
     console.error('Error refreshing access token:', error);
