@@ -5,41 +5,46 @@ import { signIn, signOut, useSession } from 'next-auth/react';
 export default function Home() {
   const { data: session } = useSession();
   const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (session) {
-      fetchRecommendations();
-    }
-  }, [session]);
+
 
   const fetchRecommendations = async () => {
-    try {
-      // Fetch user's top tracks
-      const topTracksRes = await fetch('/api/spotify/top-tracks');
-      const { topTracks } = await topTracksRes.json();
-  
-      // Log topTracks to debug the response
-      console.log('Top Tracks:', topTracks);
-  
-      if (!topTracks || topTracks.length === 0) {
-        console.error('No top tracks found');
-        return;
-      }
-  
-      // Get the top 5 track IDs as seeds
-      const seedTracks = topTracks.slice(0, 5).map((track) => track.id).join(',');
-  
-      // Fetch recommendations using the seed tracks
-      const recRes = await fetch(`/api/spotify/recommendations?seed_tracks=${seedTracks}`);
-      const { recommendations } = await recRes.json();
-  
-      // Log recommendations to debug the response
-      console.log('Recommendations:', recommendations);
-      setRecommendations(recommendations);
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
+  setLoading(true);
+  setError(null);
+
+  try {
+    // Fetch user's top tracks
+    const topTracksRes = await fetch('/api/spotify/top-tracks');
+    const { topTracks } = await topTracksRes.json();
+
+    if (!topTracks || topTracks.length === 0) {
+      console.error('No top tracks found');
+      setError('No top tracks available');
+      return;
     }
-  };
+
+    const seedTracks = topTracks.slice(0, 5).map(track => track.id).join(',');
+
+    // Fetch recommendations
+    const recRes = await fetch(`/api/spotify/recommendations?seed_tracks=${seedTracks}`);
+    const { recommendations } = await recRes.json();
+
+    if (!recommendations) {
+      setError('No recommendations found');
+      return;
+    }
+
+    setRecommendations(recommendations);
+  } catch (error) {
+    console.error('Error fetching recommendations:', error);
+    setError('Failed to fetch recommendations');
+  } finally {
+    setLoading(false);
+  }
+};
+
   
 
   return (
@@ -54,6 +59,9 @@ export default function Home() {
         ) : (
           <>
             <h2 style={styles.recommendationTitle}>Recommended for You</h2>
+            <button style={styles.refreshButton} onClick={fetchRecommendations} disabled={loading}>
+              {loading ? 'Refreshing...' : 'Refresh Recommendations'}
+            </button>
             <div style={styles.recommendations}>
             {recommendations.map((track) => (
               <div key={track.id} style={styles.track}>

@@ -11,6 +11,32 @@ const scopes = [
   'playlist-modify-private',
 ].join(',');
 
+// Utility function to handle Spotify API requests with rate-limiting logic
+async function spotifyApiRequest(url, options) {
+  try {
+    const response = await fetch(url, options);
+
+    // Handle rate limit (HTTP 429)
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      console.warn(`Rate limit hit, retrying after ${retryAfter} seconds`);
+      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000)); // Wait for Retry-After time
+      return spotifyApiRequest(url, options); // Retry the request
+    }
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Spotify API request failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error with Spotify API request:', error);
+    throw error;
+  }
+}
+
+// Refresh the Spotify access token
 async function refreshAccessToken(token) {
   try {
     const url = 'https://accounts.spotify.com/api/token';
@@ -20,19 +46,15 @@ async function refreshAccessToken(token) {
     params.append('client_id', process.env.SPOTIFY_CLIENT_ID);
     params.append('client_secret', process.env.SPOTIFY_CLIENT_SECRET);
 
-    const response = await fetch(url, {
+    const options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
-    });
+    };
 
-    const refreshedTokens = await response.json();
-
-    if (!response.ok) {
-      throw refreshedTokens;
-    }
+    const refreshedTokens = await spotifyApiRequest(url, options);
 
     return {
       ...token,
@@ -50,6 +72,7 @@ async function refreshAccessToken(token) {
   }
 }
 
+// Main NextAuth configuration
 export default NextAuth({
   providers: [
     SpotifyProvider({
@@ -76,13 +99,14 @@ export default NextAuth({
       }
 
       // If the access token has not expired, return the previous token
-      if (Date.now() < token.accessTokenExpires) {
+      if (Date.now() < token.accessTokenExpires - 5 * 60 * 1000) { // 5-minute buffer
         return token;
       }
 
-      // Access token has expired, try to update it
+      // Access token has expired, refresh it
       return refreshAccessToken(token);
     },
+
     async session({ session, token }) {
       session.accessToken = token.accessToken;
       session.error = token.error;
