@@ -7,6 +7,8 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedTracks, setSelectedTracks] = useState([]);
+
 
   useEffect(() => {
     if (session && recommendations.length === 0) {
@@ -41,14 +43,90 @@ export default function Home() {
     }
 
     setRecommendations(recommendations);
-  } catch (error) {
-    console.error('Error fetching recommendations:', error);
-    setError('Failed to fetch recommendations');
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      setError('Failed to fetch recommendations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+
+  
+
+
+  const toggleTrackSelection = (track) => {
+    setSelectedTracks((prevSelected) =>
+      prevSelected.includes(track.id)
+        ? prevSelected.filter((id) => id !== track.id)
+        : [...prevSelected, track.id]
+    );
+  };
+
+  const createPlaylist = async () => {
+    if (!selectedTracks.length) {
+      alert('Please select at least one track to create a playlist.');
+      return;
+    }
+
+    try {
+      // Fetch user ID
+      const userIdRes = await fetch('https://api.spotify.com/v1/me', {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+      const { id: userId } = await userIdRes.json();
+
+      // Create a new playlist
+      const url = `https://api.spotify.com/v1/users/${userId}/playlists`; // Use userId here
+      const options = {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'My New Playlist',
+          description: 'A playlist created from my app',
+          public: false,
+        }),
+      };
+
+      const response = await fetch(url, options);
+      const playlist = await response.json();
+
+      if (playlist.id) {
+        // Now add selected tracks to the created playlist
+        await addTracksToPlaylist(playlist.id);
+      }
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+    }
+  };
+
+  // Function to add selected tracks to the playlist
+  const addTracksToPlaylist = async (playlistId) => {
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks`;
+    const options = {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        uris: selectedTracks.map((trackId) => `spotify:track:${trackId}`),
+      }),
+    };
+
+    try {
+      await fetch(url, options);
+      alert('Playlist created successfully!');
+    } catch (error) {
+      console.error('Error adding tracks to playlist:', error);
+    }
+  };
+  
   
 
   return (
@@ -69,32 +147,43 @@ export default function Home() {
             <div style={styles.recommendations}>
             {recommendations.map((track) => (
               <div key={track.id} style={styles.track}>
-              <img src={track.album.images[0].url} alt={track.name} style={styles.trackImage} />
-              <div>
-                <h4>{track.name}</h4>
-                <p>{track.artists.map((artist) => artist.name).join(', ')}</p>
+                <img src={track.album.images[0].url} alt={track.name} style={styles.trackImage} />
+                <div>
+                  <h4>{track.name}</h4>
+                  <p>{track.artists.map((artist) => artist.name).join(', ')}</p>
+                </div>
+
+                {/* Checkbox to select/deselect the track */}
+                <input
+                  type="checkbox"
+                  checked={selectedTracks.includes(track.id)}
+                  onChange={() => toggleTrackSelection(track)}
+                />
+
+                {/* Check if the track has a preview URL */}
+                {track.preview_url ? (
+                  <audio controls style={styles.audioPlayer}>
+                    <source src={track.preview_url} type="audio/mpeg" />
+                    Your browser does not support the audio element.
+                  </audio>
+                ) : (
+                  <p style={styles.noPreviewText}>No Preview Available</p>
+                )}
+
+                {/* Link to Spotify */}
+                <a href={track.external_urls.spotify} target="_blank" rel="noopener noreferrer" style={styles.trackLink}>
+                  Open in Spotify
+                </a>
+                
               </div>
-          
-              {/* Check if the track has a preview URL */}
-              {track.preview_url ? (
-                <audio controls style={styles.audioPlayer}>
-                  <source src={track.preview_url} type="audio/mpeg" />
-                  Your browser does not support the audio element.
-                </audio>
-              ) : (
-                <p style={styles.noPreviewText}>No Preview Available</p>
-              )}
-              
-              {/* Link to Spotify */}
-              <a href={track.external_urls.spotify} target="_blank" rel="noopener noreferrer" style={styles.trackLink}>
-                Open in Spotify
-              </a>
-            </div>
             ))}
           </div>
           </>
         )}
       </main>
+      <button onClick={createPlaylist} style={styles.createPlaylistButton}>
+        Create Playlist
+      </button>
     </div>
   );
 }

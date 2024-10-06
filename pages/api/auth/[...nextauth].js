@@ -7,21 +7,26 @@ const scopes = [
   'user-read-email',
   'playlist-read-collaborative',
   'user-top-read',
-  'playlist-modify-public',  
+  'playlist-modify-public',
   'playlist-modify-private',
 ].join(',');
 
 // Utility function to handle Spotify API requests with rate-limiting logic
-async function spotifyApiRequest(url, options) {
+async function spotifyApiRequest(url, options, retryCount = 0) {
+  const maxRetries = 3; // Limit retries
   try {
     const response = await fetch(url, options);
 
     // Handle rate limit (HTTP 429)
     if (response.status === 429) {
-      const retryAfter = response.headers.get('Retry-After');
+      const retryAfter = response.headers.get('Retry-After') || 1; // Default to 1 second if not specified
       console.warn(`Rate limit hit, retrying after ${retryAfter} seconds`);
       await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000)); // Wait for Retry-After time
-      return spotifyApiRequest(url, options); // Retry the request
+      if (retryCount < maxRetries) {
+        return spotifyApiRequest(url, options, retryCount + 1); // Retry the request
+      } else {
+        throw new Error('Max retries reached');
+      }
     }
 
     if (!response.ok) {
@@ -64,7 +69,7 @@ async function refreshAccessToken(token) {
     };
   } catch (error) {
     console.error('Error refreshing access token:', error);
-
+    // Handle invalid refresh token scenario
     return {
       ...token,
       error: 'RefreshAccessTokenError',
@@ -92,7 +97,7 @@ export default NextAuth({
       if (account) {
         return {
           accessToken: account.access_token,
-          accessTokenExpires: Date.now() + account.expires_in * 1000, // handling expiration time in ms
+          accessTokenExpires: Date.now() + account.expires_in * 1000, // Handling expiration time in ms
           refreshToken: account.refresh_token,
           user: account,
         };
