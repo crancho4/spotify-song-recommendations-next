@@ -56,21 +56,28 @@ export default function Home() {
             <h2 style={styles.recommendationTitle}>Recommended for You</h2>
             <div style={styles.recommendations}>
             {recommendations.map((track) => (
-              <a 
-                key={track.id} 
-                href={track.external_urls.spotify} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={styles.trackLink}
-              >
-                <div style={styles.track}>
-                  <img src={track.album.images[0].url} alt={track.name} style={styles.trackImage} />
-                  <div>
-                    <h4>{track.name}</h4>
-                    <p>{track.artists.map(artist => artist.name).join(', ')}</p>
-                  </div>
-                </div>
+              <div key={track.id} style={styles.track}>
+              <img src={track.album.images[0].url} alt={track.name} style={styles.trackImage} />
+              <div>
+                <h4>{track.name}</h4>
+                <p>{track.artists.map((artist) => artist.name).join(', ')}</p>
+              </div>
+          
+              {/* Check if the track has a preview URL */}
+              {track.preview_url ? (
+                <audio controls style={styles.audioPlayer}>
+                  <source src={track.preview_url} type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+              ) : (
+                <p style={styles.noPreviewText}>No Preview Available</p>
+              )}
+              
+              {/* Link to Spotify */}
+              <a href={track.external_urls.spotify} target="_blank" rel="noopener noreferrer" style={styles.trackLink}>
+                Open in Spotify
               </a>
+            </div>
             ))}
           </div>
           </>
@@ -82,7 +89,17 @@ export default function Home() {
 
 // Refined styles
 const styles = {
-  // existing styles...
+  
+  audioPlayer: {
+    width: '100%',
+    marginTop: '10px',
+  },
+  noPreviewText: {
+    marginTop: '10px',
+    fontStyle: 'italic',
+    color: 'gray',
+  },
+  
   recommendationTitle: {
     marginTop: '40px',
     fontSize: '24px',
