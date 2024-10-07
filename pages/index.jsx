@@ -142,7 +142,7 @@ export default function Home() {
           <>
             <h2 style={styles.recommendationTitle}>Recommended for You</h2>
             <button style={styles.refreshButton} onClick={fetchRecommendations} disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh Recommendations'}
+              {loading ? 'Recommending...' : 'Refresh Recommendations'}
             </button>
             <div style={styles.recommendations}>
             {recommendations.map((track) => (
